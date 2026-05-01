@@ -105,6 +105,7 @@ async def _send_to_target(
     reply_markup,
     pin_forwarded=False,
     silent_pin=True,
+    no_link_preview=False,
 ):
     sent_msg = None
     needs_copy = hide_tag or (caption_override is not None) or (reply_markup is not None)
@@ -131,13 +132,25 @@ async def _send_to_target(
             )
             if reply_markup is not None:
                 kwargs["reply_markup"] = reply_markup
+            if no_link_preview:
+                kwargs["disable_web_page_preview"] = True
             sent_msg = await client.send_message(**kwargs)
     else:
-        sent_msg = await client.forward_messages(
-            chat_id      = target,
-            from_chat_id = msg.chat.id,
-            message_ids  = msg.id,
-        )
+        if no_link_preview and not _is_media(msg):
+            # forward_messages doesn't support disable_web_page_preview,
+            # so we copy as send_message when link preview must be suppressed
+            sent_msg = await client.send_message(
+                chat_id                  = target,
+                text                     = msg.text or "",
+                parse_mode               = ParseMode.HTML,
+                disable_web_page_preview = True,
+            )
+        else:
+            sent_msg = await client.forward_messages(
+                chat_id      = target,
+                from_chat_id = msg.chat.id,
+                message_ids  = msg.id,
+            )
 
     if pin_forwarded and sent_msg:
         try:
@@ -279,9 +292,10 @@ async def relay_message(client: Client, msg: Message, pipe: dict):
         remove_existing = remove_buttons,
     )
 
-    hide_tag   = pipe.get("hide_tag", True)
-    pin_fwd    = transform.get("pin_forwarded", False)
-    silent_pin = transform.get("silent_pin", True)
+    hide_tag        = pipe.get("hide_tag", True)
+    pin_fwd         = transform.get("pin_forwarded", False)
+    silent_pin      = transform.get("silent_pin", True)
+    no_link_preview = transform.get("no_link_preview", False)
 
     broken_targets = []
     sent_msgs      = []
@@ -297,6 +311,7 @@ async def relay_message(client: Client, msg: Message, pipe: dict):
                 reply_markup     = reply_markup,
                 pin_forwarded    = pin_fwd,
                 silent_pin       = silent_pin,
+                no_link_preview  = no_link_preview,
             )
             if m:
                 ref.append(m)
