@@ -9,6 +9,6 @@ async def home():
     return {"status": "Bot Running"}
 
 def start_bot():
-    os.system("python3 bot.py")
+    os.system("python3 main.py")
 
 threading.Thread(target=start_bot, daemon=True).start()
