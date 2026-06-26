@@ -9,3 +9,5 @@ apscheduler
 psutil
 fastapi
 uvicorn[standard]
+fastapi[standard]>=0.116.0
+uvicorn>=0.35.0
